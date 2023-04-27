@@ -65,6 +65,7 @@ android {
             signingConfig signingConfigs.release
         }
     }
+    namespace 'com.google.cloud.android.speech'
 
     configurations.all {
         resolutionStrategy.force 'com.google.code.findbugs:jsr305:3.0.2'
@@ -78,10 +79,10 @@ protobuf {
     }
     plugins {
         javalite {
-            artifact = "com.google.protobuf:protoc-gen-javalite:3.0.0"
+            artifact = "com.google.protobuf:protoc-gen-javalite:3.0.0:osx-x86_64"
         }
         grpc {
-            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}:osx-x86_64"
         }
     }
     generateProtoTasks {

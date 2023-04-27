@@ -5,3 +5,7 @@
 .idea/
 *.iml
 local.properties
+.DS_Store
+endpoints-frameworks/.DS_Store
+nl/.DS_Store
+speech/.DS_Store
