@@ -19,7 +19,7 @@ package com.google.cloud.android.speech;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 
 /**
