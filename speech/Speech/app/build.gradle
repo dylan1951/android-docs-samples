@@ -16,11 +16,6 @@
 
 apply plugin: 'com.android.application'
 
-ext {
-    supportLibraryVersion = '25.4.0'
-    grpcVersion = '1.24.0'
-}
-
 android {
     packagingOptions {
         exclude 'META-INF/*'
@@ -48,7 +43,6 @@ android {
 
     productFlavors {
         prod {
-            // Minimum version that can run gRPC (TLS extension)
             minSdkVersion 16
         }
     }
@@ -65,17 +59,11 @@ android {
         }
     }
     namespace 'com.google.cloud.android.speech'
-
-    configurations.all {
-        resolutionStrategy.force 'com.google.code.findbugs:jsr305:3.0.2'
-        resolutionStrategy.force "com.android.support:support-annotations:$supportLibraryVersion"
-    }
 }
 
 dependencies {
     implementation 'com.google.cloud:google-cloud-speech:4.11.0'
     implementation 'com.google.api.grpc:grpc-google-cloud-speech-v1:4.11.0'
-
 
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
