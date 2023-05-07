@@ -322,12 +322,7 @@ public class SpeechService extends Service {
 
     }
 
-    private final Runnable mFetchAccessTokenRunnable = new Runnable() {
-        @Override
-        public void run() {
-            fetchAccessToken();
-        }
-    };
+    private final Runnable mFetchAccessTokenRunnable = this::fetchAccessToken;
 
     private class AccessTokenTask extends AsyncTask<Void, Void, AccessToken> {
 
