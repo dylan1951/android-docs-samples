@@ -44,10 +44,6 @@ android {
     flavorDimensions "default"
 
     productFlavors {
-        dev {
-            // Minimum version with platform multi-dex support
-            minSdkVersion 21
-        }
         prod {
             // Minimum version that can run gRPC (TLS extension)
             minSdkVersion 16
