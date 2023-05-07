@@ -162,7 +162,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         if (mAdapter != null) {
             outState.putStringArrayList(STATE_RESULTS, mAdapter.getResults());
@@ -185,20 +185,18 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
+    public boolean onCreateOptionsMenu(@NonNull Menu menu) {
         getMenuInflater().inflate(R.menu.main, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.action_file:
-                mSpeechService.recognizeInputStream(getResources().openRawResource(R.raw.audio));
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
+        if (item.getItemId() == R.id.action_file) {
+            mSpeechService.recognizeInputStream(getResources().openRawResource(R.raw.audio));
+            return true;
         }
+        return super.onOptionsItemSelected(item);
     }
 
     private void startVoiceRecorder() {
@@ -223,12 +221,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     }
 
     private void showStatus(final boolean hearingVoice) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mStatus.setTextColor(hearingVoice ? mColorHearing : mColorNotHearing);
-            }
-        });
+        runOnUiThread(() -> mStatus.setTextColor(hearingVoice ? mColorHearing : mColorNotHearing));
     }
 
     @Override
@@ -245,16 +238,13 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                         mVoiceRecorder.dismiss();
                     }
                     if (mText != null && !TextUtils.isEmpty(text)) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (isFinal) {
-                                    mText.setText(null);
-                                    mAdapter.addResult(text);
-                                    mRecyclerView.smoothScrollToPosition(0);
-                                } else {
-                                    mText.setText(text);
-                                }
+                        runOnUiThread(() -> {
+                            if (isFinal) {
+                                mText.setText(null);
+                                mAdapter.addResult(text);
+                                mRecyclerView.smoothScrollToPosition(0);
+                            } else {
+                                mText.setText(text);
                             }
                         });
                     }
@@ -282,8 +272,9 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
             }
         }
 
+        @NonNull
         @Override
-        public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             return new ViewHolder(LayoutInflater.from(parent.getContext()), parent);
         }
 
