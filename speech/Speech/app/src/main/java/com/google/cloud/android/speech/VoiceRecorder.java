@@ -185,21 +185,14 @@ public class VoiceRecorder {
                     }
                     final int size = mAudioRecord.read(mBuffer, 0, mBuffer.length);
                     final long now = System.currentTimeMillis();
-                    if (isHearingVoice(mBuffer, size)) {
-                        if (mLastVoiceHeardMillis == Long.MAX_VALUE) {
-                            mVoiceStartedMillis = now;
-                            mCallback.onVoiceStart();
-                        }
-                        mCallback.onVoice(mBuffer, size);
-                        mLastVoiceHeardMillis = now;
-                        if (now - mVoiceStartedMillis > MAX_SPEECH_LENGTH_MILLIS) {
-                            end();
-                        }
-                    } else if (mLastVoiceHeardMillis != Long.MAX_VALUE) {
-                        mCallback.onVoice(mBuffer, size);
-                        if (now - mLastVoiceHeardMillis > SPEECH_TIMEOUT_MILLIS) {
-                            end();
-                        }
+                    if (mLastVoiceHeardMillis == Long.MAX_VALUE) {
+                        mVoiceStartedMillis = now;
+                        mCallback.onVoiceStart();
+                    }
+                    mCallback.onVoice(mBuffer, size);
+                    mLastVoiceHeardMillis = now;
+                    if (now - mVoiceStartedMillis > MAX_SPEECH_LENGTH_MILLIS) {
+                        end();
                     }
                 }
             }
