@@ -18,6 +18,7 @@ package com.google.cloud.android.speech;
 
 import static com.google.cloud.speech.v1.StreamingRecognizeResponse.SpeechEventType.END_OF_SINGLE_UTTERANCE;
 
+import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -30,7 +31,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.AccessToken;
@@ -87,6 +87,7 @@ public class SpeechService extends Service {
          */
         void onSpeechRecognized(String text, boolean isFinal);
 
+        void debug(String message);
     }
 
     private static final String TAG = "SpeechService";
@@ -111,6 +112,12 @@ public class SpeechService extends Service {
     private SpeechGrpc.SpeechStub mApi;
     private static Handler mHandler;
 
+    private void print(String message) {
+        for (Listener listener : mListeners) {
+            listener.debug(message);
+        }
+    }
+
     private final StreamObserver<StreamingRecognizeResponse> mResponseObserver
             = new StreamObserver<StreamingRecognizeResponse>() {
         @Override
@@ -118,7 +125,7 @@ public class SpeechService extends Service {
             String text = null;
             boolean isFinal = false;
             if (response.getSpeechEventType() == END_OF_SINGLE_UTTERANCE) {
-                Toast.makeText(getApplicationContext(), "END OF UTTERANCE", Toast.LENGTH_LONG).show();
+                print("END OF UTTERANCE");
             }
             if (response.getResultsCount() > 0) {
                 final StreamingRecognitionResult result = response.getResults(0);
@@ -129,7 +136,6 @@ public class SpeechService extends Service {
                 }
             }
             if (text != null) {
-                Toast.makeText(getApplicationContext(), "hello!", Toast.LENGTH_LONG).show();
                 for (Listener listener : mListeners) {
                     listener.onSpeechRecognized(text, isFinal);
                 }
