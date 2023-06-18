@@ -16,9 +16,20 @@
 
 apply plugin: 'com.android.application'
 
+configurations {
+    all {
+        exclude module: 'httpclient'
+    }
+}
+
 android {
     packagingOptions {
-        exclude 'META-INF/*'
+        jniLibs {
+            excludes += ['META-INF/*']
+        }
+        resources {
+            excludes += ['META-INF/*']
+        }
     }
 
     compileSdkVersion 33
@@ -62,8 +73,8 @@ android {
 }
 
 dependencies {
-    implementation 'com.google.cloud:google-cloud-speech:4.11.0'
-    implementation 'com.google.api.grpc:grpc-google-cloud-speech-v1:4.11.0'
+    implementation 'com.google.cloud:google-cloud-speech:4.14.0'
+    implementation 'com.google.api.grpc:grpc-google-cloud-speech-v1:4.14.0'
 
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
@@ -76,7 +87,7 @@ dependencies {
     implementation "io.grpc:grpc-okhttp:1.40.1"
 
     // OAuth2 for Google API
-    implementation('com.google.auth:google-auth-library-oauth2-http:1.16.0') {
+    implementation('com.google.auth:google-auth-library-oauth2-http:1.17.0') {
         exclude module: 'httpclient'
     }
 
