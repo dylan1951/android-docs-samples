@@ -243,6 +243,9 @@ public class SpeechService extends Service {
      * @param sampleRate The sample rate of the audio.
      */
     public void startRecognizing(int sampleRate) {
+
+        Log.d("Banana", "startRecognizing()");
+
         if (mApi == null) {
             Log.w(TAG, "API not ready. Ignoring the request.");
             return;
@@ -257,7 +260,7 @@ public class SpeechService extends Service {
                                 .setSampleRateHertz(sampleRate)
                                 .build())
                         .setInterimResults(true)
-                        .setSingleUtterance(true)
+                        .setSingleUtterance(false)
                         .build())
                 .build());
     }
@@ -283,6 +286,9 @@ public class SpeechService extends Service {
      * Finishes recognizing speech audio.
      */
     public void finishRecognizing() {
+
+        Log.d("Banana", "finishRecognizing()");
+
         if (mRequestObserver == null) {
             return;
         }

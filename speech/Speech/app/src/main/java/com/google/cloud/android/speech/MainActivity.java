@@ -21,12 +21,11 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.content.res.Resources;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.res.ResourcesCompat;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -52,37 +51,15 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
 
     private SpeechService mSpeechService;
 
-    private VoiceRecorder mVoiceRecorder;
-    private final VoiceRecorder.Callback mVoiceCallback = new VoiceRecorder.Callback() {
-
-        @Override
-        public void onVoiceStart() {
-            showStatus(true);
-            if (mSpeechService != null) {
-                mSpeechService.startRecognizing(mVoiceRecorder.getSampleRate());
-            }
-        }
-
+    private SimpleVoiceRecorder mVoiceRecorder;
+    private final SimpleVoiceRecorder.Callback mVoiceCallback = new SimpleVoiceRecorder.Callback() {
         @Override
         public void onVoice(byte[] data, int size) {
             if (mSpeechService != null) {
                 mSpeechService.recognize(data, size);
             }
         }
-
-        @Override
-        public void onVoiceEnd() {
-            showStatus(false);
-            if (mSpeechService != null) {
-                mSpeechService.finishRecognizing();
-            }
-        }
-
     };
-
-    // Resource caches
-    private int mColorHearing;
-    private int mColorNotHearing;
 
     // View references
     private TextView mStatus;
@@ -97,6 +74,12 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
             mSpeechService = SpeechService.from(binder);
             mSpeechService.addListener(mSpeechServiceListener);
             mStatus.setVisibility(View.VISIBLE);
+
+            Handler handler = new Handler();
+            handler.postDelayed(() -> {
+                // this will cause problems if mVoiceRecorder isn't initialized
+                mSpeechService.startRecognizing(mVoiceRecorder.getSampleRate());
+            }, 1000);
         }
 
         @Override
@@ -110,11 +93,6 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        final Resources resources = getResources();
-        final Resources.Theme theme = getTheme();
-        mColorHearing = ResourcesCompat.getColor(resources, R.color.status_hearing, theme);
-        mColorNotHearing = ResourcesCompat.getColor(resources, R.color.status_not_hearing, theme);
 
         setSupportActionBar((Toolbar) findViewById(R.id.toolbar));
         mStatus = (TextView) findViewById(R.id.status);
@@ -203,7 +181,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         if (mVoiceRecorder != null) {
             mVoiceRecorder.stop();
         }
-        mVoiceRecorder = new VoiceRecorder(mVoiceCallback);
+        mVoiceRecorder = new SimpleVoiceRecorder(mVoiceCallback);
         mVoiceRecorder.start();
     }
 
@@ -220,10 +198,6 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                 .show(getSupportFragmentManager(), FRAGMENT_MESSAGE_DIALOG);
     }
 
-    private void showStatus(final boolean hearingVoice) {
-        runOnUiThread(() -> mStatus.setTextColor(hearingVoice ? mColorHearing : mColorNotHearing));
-    }
-
     @Override
     public void onMessageDialogDismissed() {
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO},
@@ -234,9 +208,6 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
             new SpeechService.Listener() {
                 @Override
                 public void onSpeechRecognized(final String text, final boolean isFinal) {
-                    if (isFinal) {
-                        mVoiceRecorder.dismiss();
-                    }
                     if (mText != null && !TextUtils.isEmpty(text)) {
                         runOnUiThread(() -> {
                             if (isFinal) {
