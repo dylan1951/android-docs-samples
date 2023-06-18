@@ -34,7 +34,6 @@ import androidx.appcompat.widget.Toolbar;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -79,6 +78,10 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
             }
         }
 
+        @Override
+        public void debug(String message) {
+            runOnUiThread(() -> Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show());
+        }
     };
 
     // Resource caches
@@ -191,15 +194,6 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         return true;
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_file) {
-            mSpeechService.recognizeInputStream(getResources().openRawResource(R.raw.audio));
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
     private void startVoiceRecorder() {
         if (mVoiceRecorder != null) {
             mVoiceRecorder.stop();
@@ -253,7 +247,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
 
                 @Override
                 public void debug(String message) {
-                    runOnUiThread(() -> Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show());
+                    runOnUiThread(() -> Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show());
                 }
             };
 

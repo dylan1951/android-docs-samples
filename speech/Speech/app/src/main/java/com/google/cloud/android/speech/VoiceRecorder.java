@@ -19,6 +19,8 @@ package com.google.cloud.android.speech;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.SystemClock;
+
 import androidx.annotation.NonNull;
 
 
@@ -40,6 +42,10 @@ public class VoiceRecorder {
     private static final int AMPLITUDE_THRESHOLD = 1500;
     private static final int SPEECH_TIMEOUT_MILLIS = 2000;
     private static final int MAX_SPEECH_LENGTH_MILLIS = 30 * 1000;
+
+    private void print(String message) {
+        mCallback.debug(message);
+    }
 
     public static abstract class Callback {
 
@@ -63,6 +69,8 @@ public class VoiceRecorder {
          */
         public void onVoiceEnd() {
         }
+
+        public void debug(String message) {}
     }
 
     private final Callback mCallback;
@@ -178,28 +186,27 @@ public class VoiceRecorder {
 
         @Override
         public void run() {
+            SystemClock.sleep(100);
+
             while (true) {
                 synchronized (mLock) {
                     if (Thread.currentThread().isInterrupted()) {
                         break;
                     }
+
                     final int size = mAudioRecord.read(mBuffer, 0, mBuffer.length);
                     final long now = System.currentTimeMillis();
-                    if (isHearingVoice(mBuffer, size)) {
-                        if (mLastVoiceHeardMillis == Long.MAX_VALUE) {
-                            mVoiceStartedMillis = now;
-                            mCallback.onVoiceStart();
-                        }
-                        mCallback.onVoice(mBuffer, size);
-                        mLastVoiceHeardMillis = now;
-                        if (now - mVoiceStartedMillis > MAX_SPEECH_LENGTH_MILLIS) {
-                            end();
-                        }
-                    } else if (mLastVoiceHeardMillis != Long.MAX_VALUE) {
-                        mCallback.onVoice(mBuffer, size);
-                        if (now - mLastVoiceHeardMillis > SPEECH_TIMEOUT_MILLIS) {
-                            end();
-                        }
+
+                    if (mLastVoiceHeardMillis == Long.MAX_VALUE) {
+                        mVoiceStartedMillis = now;
+                        mCallback.onVoiceStart();
+                    }
+
+                    mCallback.onVoice(mBuffer, size);
+                    mLastVoiceHeardMillis = now;
+
+                    if (now - mVoiceStartedMillis > MAX_SPEECH_LENGTH_MILLIS) {
+                        end();
                     }
                 }
             }
@@ -208,20 +215,6 @@ public class VoiceRecorder {
         private void end() {
             mLastVoiceHeardMillis = Long.MAX_VALUE;
             mCallback.onVoiceEnd();
-        }
-
-        private boolean isHearingVoice(byte[] buffer, int size) {
-            for (int i = 0; i < size - 1; i += 2) {
-                // The buffer has LINEAR16 in little endian.
-                int s = buffer[i + 1];
-                if (s < 0) s *= -1;
-                s <<= 8;
-                s += Math.abs(buffer[i]);
-                if (s > AMPLITUDE_THRESHOLD) {
-                    return true;
-                }
-            }
-            return false;
         }
 
     }
