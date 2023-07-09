@@ -39,6 +39,7 @@ android {
         targetSdkVersion 33
         versionCode 1
         versionName '1.0'
+        minSdk 24
     }
 
     signingConfigs {
@@ -54,7 +55,7 @@ android {
 
     productFlavors {
         prod {
-            minSdkVersion 16
+            minSdkVersion 24
         }
     }
 

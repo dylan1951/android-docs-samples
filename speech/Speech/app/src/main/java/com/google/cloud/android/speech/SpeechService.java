@@ -34,9 +34,7 @@ import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.speech.v1.RecognitionConfig;
 import com.google.cloud.speech.v1.SpeechGrpc;
-import com.google.cloud.speech.v1.SpeechRecognitionAlternative;
 import com.google.cloud.speech.v1.StreamingRecognitionConfig;
-import com.google.cloud.speech.v1.StreamingRecognitionResult;
 import com.google.cloud.speech.v1.StreamingRecognizeRequest;
 import com.google.cloud.speech.v1.StreamingRecognizeResponse;
 import com.google.protobuf.ByteString;
@@ -71,19 +69,10 @@ import io.grpc.stub.StreamObserver;
 public class SpeechService extends Service {
 
     public interface Listener {
-
-        /**
-         * Called when a new piece of text was recognized by the Speech API.
-         *
-         * @param text    The text.
-         * @param isFinal {@code true} when the API finished processing audio.
-         */
-        void onSpeechRecognized(String text, boolean isFinal);
-
+        void ready();
     }
 
     private static final String TAG = "SpeechService";
-
     private static final String PREFS = "SpeechService";
     private static final String PREF_ACCESS_TOKEN_VALUE = "access_token_value";
     private static final String PREF_ACCESS_TOKEN_EXPIRATION_TIME = "access_token_expiration_time";
@@ -103,39 +92,6 @@ public class SpeechService extends Service {
     private volatile AccessTokenTask mAccessTokenTask;
     private SpeechGrpc.SpeechStub mApi;
     private static Handler mHandler;
-
-    private final StreamObserver<StreamingRecognizeResponse> mResponseObserver
-            = new StreamObserver<StreamingRecognizeResponse>() {
-        @Override
-        public void onNext(StreamingRecognizeResponse response) {
-            String text = null;
-            boolean isFinal = false;
-            if (response.getResultsCount() > 0) {
-                final StreamingRecognitionResult result = response.getResults(0);
-                isFinal = result.getIsFinal();
-                if (result.getAlternativesCount() > 0) {
-                    final SpeechRecognitionAlternative alternative = result.getAlternatives(0);
-                    text = alternative.getTranscript();
-                }
-            }
-            if (text != null) {
-                for (Listener listener : mListeners) {
-                    listener.onSpeechRecognized(text, isFinal);
-                }
-            }
-        }
-
-        @Override
-        public void onError(Throwable t) {
-            Log.e(TAG, "Error calling the API.", t);
-        }
-
-        @Override
-        public void onCompleted() {
-            Log.i(TAG, "API completed.");
-        }
-
-    };
 
     private StreamObserver<StreamingRecognizeRequest> mRequestObserver;
 
@@ -202,21 +158,26 @@ public class SpeechService extends Service {
         mListeners.remove(listener);
     }
 
+    public static class NotConnectedException extends RuntimeException {
+        public NotConnectedException() {
+            super();
+        }
+    }
+
     /**
      * Starts recognizing speech audio.
      *
      * @param sampleRate The sample rate of the audio.
      */
-    public void startRecognizing(int sampleRate) {
+    public void startRecognizing(int sampleRate, StreamObserver<StreamingRecognizeResponse> responseObserver) throws NotConnectedException {
 
         Log.d("Banana", "startRecognizing()");
 
         if (mApi == null) {
-            Log.w(TAG, "API not ready. Ignoring the request.");
-            return;
+            throw new NotConnectedException();
         }
         // Configure the API
-        mRequestObserver = mApi.streamingRecognize(mResponseObserver);
+        mRequestObserver = mApi.streamingRecognize(responseObserver);
         mRequestObserver.onNext(StreamingRecognizeRequest.newBuilder()
                 .setStreamingConfig(StreamingRecognitionConfig.newBuilder()
                         .setConfig(RecognitionConfig.newBuilder()
@@ -245,6 +206,17 @@ public class SpeechService extends Service {
         mRequestObserver.onNext(StreamingRecognizeRequest.newBuilder()
                 .setAudioContent(ByteString.copyFrom(data, 0, size))
                 .build());
+    }
+
+    /**
+     * Finishes recognizing speech audio.
+     */
+    public void finishRecognizing() {
+        if (mRequestObserver == null) {
+            return;
+        }
+        mRequestObserver.onCompleted();
+        mRequestObserver = null;
     }
 
     private class SpeechBinder extends Binder {
@@ -313,6 +285,10 @@ public class SpeechService extends Service {
                         Math.max(accessToken.getExpirationTime().getTime()
                                 - System.currentTimeMillis()
                                 - ACCESS_TOKEN_FETCH_MARGIN, ACCESS_TOKEN_EXPIRATION_TOLERANCE));
+            }
+
+            for (Listener listener : mListeners) {
+                listener.ready();
             }
         }
     }
