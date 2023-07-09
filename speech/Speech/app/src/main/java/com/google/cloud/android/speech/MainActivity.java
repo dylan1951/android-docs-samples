@@ -92,6 +92,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         speech.startRecognizing(new StreamObserver<StreamingRecognizeResponse>() {
             @Override
             public void onNext(StreamingRecognizeResponse value) {
+                Log.d("banana", "received response");
                 for (int i = 0; i < value.getResultsCount(); i++) {
                     StreamingRecognitionResult result = value.getResults(i);
                     if (result.getIsFinal()) {
