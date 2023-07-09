@@ -23,9 +23,9 @@ import android.util.Log;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.cloud.speech.v1.SpeechRecognitionAlternative;
-import com.google.cloud.speech.v1.StreamingRecognitionResult;
-import com.google.cloud.speech.v1.StreamingRecognizeResponse;
+import com.google.cloud.speech.v2.SpeechRecognitionAlternative;
+import com.google.cloud.speech.v2.StreamingRecognitionResult;
+import com.google.cloud.speech.v2.StreamingRecognizeResponse;
 
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -106,7 +106,8 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
 
             @Override
             public void onError(Throwable t) {
-                System.out.println("banana: ERROR: " + t.getMessage());
+                Log.d("banana", t.toString());
+                t.printStackTrace();
             }
 
             @Override

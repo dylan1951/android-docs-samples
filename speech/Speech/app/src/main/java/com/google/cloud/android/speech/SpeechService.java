@@ -32,11 +32,14 @@ import android.util.Log;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.speech.v1.RecognitionConfig;
-import com.google.cloud.speech.v1.SpeechGrpc;
-import com.google.cloud.speech.v1.StreamingRecognitionConfig;
-import com.google.cloud.speech.v1.StreamingRecognizeRequest;
-import com.google.cloud.speech.v1.StreamingRecognizeResponse;
+import com.google.cloud.speech.v2.ExplicitDecodingConfig;
+import com.google.cloud.speech.v2.RecognitionConfig;
+import com.google.cloud.speech.v2.RecognitionFeatures;
+import com.google.cloud.speech.v2.SpeechGrpc;
+import com.google.cloud.speech.v2.StreamingRecognitionConfig;
+import com.google.cloud.speech.v2.StreamingRecognitionFeatures;
+import com.google.cloud.speech.v2.StreamingRecognizeRequest;
+import com.google.cloud.speech.v2.StreamingRecognizeResponse;
 import com.google.protobuf.ByteString;
 
 import java.io.IOException;
@@ -176,17 +179,22 @@ public class SpeechService extends Service {
         if (mApi == null) {
             throw new NotConnectedException();
         }
+
         // Configure the API
         mRequestObserver = mApi.streamingRecognize(responseObserver);
         mRequestObserver.onNext(StreamingRecognizeRequest.newBuilder()
                 .setStreamingConfig(StreamingRecognitionConfig.newBuilder()
-                        .setConfig(RecognitionConfig.newBuilder()
-                                .setLanguageCode(getDefaultLanguageCode())
-                                .setEncoding(RecognitionConfig.AudioEncoding.LINEAR16)
-                                .setSampleRateHertz(sampleRate)
+                        .setStreamingFeatures(StreamingRecognitionFeatures.newBuilder()
+                                .setInterimResults(true)
                                 .build())
-                        .setInterimResults(true)
-                        .setSingleUtterance(false)
+                        .setConfig(RecognitionConfig.newBuilder()
+                                .setExplicitDecodingConfig(ExplicitDecodingConfig.newBuilder()
+                                        .setEncoding(ExplicitDecodingConfig.AudioEncoding.LINEAR16)
+                                        .setSampleRateHertz(sampleRate)
+                                        .build())
+                                .setFeatures(RecognitionFeatures.newBuilder()
+                                        .build())
+                                .build())
                         .build())
                 .build());
     }
@@ -204,7 +212,7 @@ public class SpeechService extends Service {
         }
         // Call the streaming recognition API
         mRequestObserver.onNext(StreamingRecognizeRequest.newBuilder()
-                .setAudioContent(ByteString.copyFrom(data, 0, size))
+                .setAudio(ByteString.copyFrom(data, 0, size))
                 .build());
     }
 

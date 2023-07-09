@@ -8,7 +8,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
 
-import com.google.cloud.speech.v1.StreamingRecognizeResponse;
+import com.google.cloud.speech.v2.StreamingRecognizeResponse;
 
 import io.grpc.stub.StreamObserver;
 
