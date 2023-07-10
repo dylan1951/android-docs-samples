@@ -99,6 +99,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                         for (int j = 0; j < result.getAlternativesCount(); j++) {
                             SpeechRecognitionAlternative alternative = result.getAlternatives(j);
                             String numberPlate = alternative.getTranscript();
+                            Log.d("banana", numberPlate);
                         }
                         speech.stopRecognizing();
                     }

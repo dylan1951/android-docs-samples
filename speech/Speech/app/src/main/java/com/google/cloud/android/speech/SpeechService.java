@@ -260,7 +260,7 @@ public class SpeechService extends Service {
                                 .setExplicitDecodingConfig(ExplicitDecodingConfig.newBuilder()
                                         .setEncoding(ExplicitDecodingConfig.AudioEncoding.LINEAR16)
                                         .setSampleRateHertz(sampleRate)
-                                        .setAudioChannelCount()
+                                        .setAudioChannelCount(1)
                                         .build())
                                 .build())
                         .build())

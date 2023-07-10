@@ -30,7 +30,7 @@ public class GoogleSpeech {
             @Override
             public void onVoice(byte[] data, int size) {
                 if (speechService != null) {
-//                    speechService.recognize(data, size);
+                    speechService.recognize(data, size);
                 }
             }
         };
@@ -55,6 +55,7 @@ public class GoogleSpeech {
         if (speechService == null) {
             throw new SpeechService.NotConnectedException();
         }
+
         voiceRecorder.start();
 
         SpeechAdaptation speechAdaptation = SpeechAdaptation.newBuilder()
