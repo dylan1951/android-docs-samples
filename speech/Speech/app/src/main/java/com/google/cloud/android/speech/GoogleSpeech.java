@@ -8,6 +8,10 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
 
+import com.google.cloud.speech.v2.RecognitionConfig;
+import com.google.cloud.speech.v2.RecognitionFeatures;
+import com.google.cloud.speech.v2.SpeechAdaptation;
+import com.google.cloud.speech.v2.StreamingRecognitionFeatures;
 import com.google.cloud.speech.v2.StreamingRecognizeResponse;
 
 import io.grpc.stub.StreamObserver;
@@ -26,7 +30,7 @@ public class GoogleSpeech {
             @Override
             public void onVoice(byte[] data, int size) {
                 if (speechService != null) {
-                    speechService.recognize(data, size);
+//                    speechService.recognize(data, size);
                 }
             }
         };
@@ -52,7 +56,17 @@ public class GoogleSpeech {
             throw new SpeechService.NotConnectedException();
         }
         voiceRecorder.start();
-        speechService.startRecognizing(voiceRecorder.getSampleRate(), observer);
+
+        SpeechAdaptation speechAdaptation = SpeechAdaptation.newBuilder()
+                .build();
+
+        RecognitionFeatures recognitionFeatures = RecognitionFeatures.newBuilder()
+                .build();
+
+        StreamingRecognitionFeatures streamingRecognitionFeatures = StreamingRecognitionFeatures.newBuilder()
+                .build();
+
+        speechService.startRecognizing(voiceRecorder.getSampleRate(), speechAdaptation, recognitionFeatures, streamingRecognitionFeatures, observer);
     }
 
     public void stopRecognizing() {

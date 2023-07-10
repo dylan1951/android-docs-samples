@@ -108,7 +108,6 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
             @Override
             public void onError(Throwable t) {
                 Log.d("banana", t.toString());
-                t.printStackTrace();
             }
 
             @Override

@@ -34,16 +34,20 @@ import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.speech.v2.CreateRecognizerRequest;
 import com.google.cloud.speech.v2.ExplicitDecodingConfig;
+import com.google.cloud.speech.v2.ListRecognizersRequest;
+import com.google.cloud.speech.v2.ListRecognizersResponse;
 import com.google.cloud.speech.v2.RecognitionConfig;
 import com.google.cloud.speech.v2.RecognitionFeatures;
 import com.google.cloud.speech.v2.Recognizer;
 import com.google.cloud.speech.v2.SpeakerDiarizationConfig;
 import com.google.cloud.speech.v2.SpeechAdaptation;
+import com.google.cloud.speech.v2.SpeechClient;
 import com.google.cloud.speech.v2.SpeechGrpc;
 import com.google.cloud.speech.v2.StreamingRecognitionConfig;
 import com.google.cloud.speech.v2.StreamingRecognitionFeatures;
 import com.google.cloud.speech.v2.StreamingRecognizeRequest;
 import com.google.cloud.speech.v2.StreamingRecognizeResponse;
+import com.google.longrunning.Operation;
 import com.google.protobuf.ByteString;
 
 import java.io.IOException;
@@ -56,6 +60,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import io.grpc.CallOptions;
@@ -78,6 +83,8 @@ public class SpeechService extends Service {
     public interface Listener {
         void ready();
     }
+
+    private static final String parent = "projects/driverinsight-384904/locations/global";
 
     private static final String TAG = "SpeechService";
     private static final String PREFS = "SpeechService";
@@ -171,12 +178,62 @@ public class SpeechService extends Service {
         }
     }
 
+    public CompletableFuture<List<Recognizer>> getRecognizers() {
+        CompletableFuture<List<Recognizer>> future = new CompletableFuture<>();
+
+        ListRecognizersRequest request = ListRecognizersRequest.newBuilder().setParent(parent).build();
+
+        mApi.listRecognizers(request, new StreamObserver<ListRecognizersResponse>() {
+            @Override
+            public void onNext(ListRecognizersResponse value) {
+                future.complete(value.getRecognizersList());
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                future.completeExceptionally(t);
+            }
+
+            @Override
+            public void onCompleted() {}
+        });
+
+        return future;
+    }
+
+    public CompletableFuture<Operation> createRecognizer(Recognizer recognizer, final String id) {
+        CompletableFuture<Operation> future = new CompletableFuture<>();
+
+        CreateRecognizerRequest request = CreateRecognizerRequest.newBuilder()
+                .setParent(parent)
+                .setRecognizerId(id)
+                .setRecognizer(recognizer)
+                .build();
+
+        mApi.createRecognizer(request, new StreamObserver<Operation>() {
+            @Override
+            public void onNext(Operation value) {
+                future.complete(value);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                future.completeExceptionally(t);
+            }
+
+            @Override
+            public void onCompleted() {}
+        });
+
+        return future;
+    }
+
     /**
      * Starts recognizing speech audio.
      *
      * @param sampleRate The sample rate of the audio.
      */
-    public void startRecognizing(int sampleRate, StreamObserver<StreamingRecognizeResponse> responseObserver) throws NotConnectedException {
+    public void startRecognizing(int sampleRate, SpeechAdaptation speechAdaptation, RecognitionFeatures recognitionFeatures, StreamingRecognitionFeatures streamingRecognitionFeatures, StreamObserver<StreamingRecognizeResponse> responseObserver) throws NotConnectedException {
 
         Log.d("Banana", "startRecognizing()");
 
@@ -184,30 +241,30 @@ public class SpeechService extends Service {
             throw new NotConnectedException();
         }
 
+        List<Recognizer> recognizers = getRecognizers().join();
+
+        Log.d("banana", "there are " + recognizers.size() + " recognizers");
+
+        if (recognizers.size() < 1) {
+            return;
+        }
+
         // Configure the API
         mRequestObserver = mApi.streamingRecognize(responseObserver);
         mRequestObserver.onNext(StreamingRecognizeRequest.newBuilder()
                 .setStreamingConfig(StreamingRecognitionConfig.newBuilder()
-//                        .setStreamingFeatures(StreamingRecognitionFeatures.newBuilder()
-//                                .setInterimResults(true)
-//                                .build())
+                        .setStreamingFeatures(streamingRecognitionFeatures)
                         .setConfig(RecognitionConfig.newBuilder()
+                                .setAdaptation(speechAdaptation)
+                                .setFeatures(recognitionFeatures)
                                 .setExplicitDecodingConfig(ExplicitDecodingConfig.newBuilder()
                                         .setEncoding(ExplicitDecodingConfig.AudioEncoding.LINEAR16)
                                         .setSampleRateHertz(sampleRate)
+                                        .setAudioChannelCount()
                                         .build())
-//                                .setFeatures(RecognitionFeatures.newBuilder()
-//                                        .setDiarizationConfig(SpeakerDiarizationConfig.newBuilder()
-//                                                .build())
-//                                        .build())
-//                                .setAdaptation(SpeechAdaptation.newBuilder()
-//                                        .build())
                                 .build())
                         .build())
-                        .setRecognizer(Recognizer.newBuilder()
-                                .setModel("latest_long")
-                                .addLanguageCodes("en-US")
-                                .build().toString())
+                        .setRecognizer(recognizers.get(0).getName())
                 .build());
 
         Log.d("banana", "sent config request");
