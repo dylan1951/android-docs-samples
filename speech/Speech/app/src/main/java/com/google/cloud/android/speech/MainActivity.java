@@ -23,10 +23,16 @@ import android.util.Log;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.auth.oauth2.AccessToken;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.speech.v2.SpeechRecognitionAlternative;
 import com.google.cloud.speech.v2.StreamingRecognitionResult;
 import com.google.cloud.speech.v2.StreamingRecognizeResponse;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
@@ -46,7 +52,20 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     protected void onStart() {
         super.onStart();
 
-        speech = new GoogleSpeech(getApplicationContext(), new GoogleSpeech.Connected() {
+        speech = new GoogleSpeech(getApplicationContext(), new GoogleSpeech.Authorize() {
+            final List<String> SCOPE = Collections.singletonList("https://www.googleapis.com/auth/cloud-platform");
+            @Override
+            // ***** WARNING *****
+            // In this sample, we load the credential from a JSON file stored in a raw resource
+            // folder of this client app. You should never do this in your app. Instead, store
+            // the file in your server and obtain an access token from there.
+            // *******************
+            public AccessToken refreshAccessToken() throws IOException {
+                final InputStream stream = getResources().openRawResource(R.raw.credential);
+                final GoogleCredentials credentials = GoogleCredentials.fromStream(stream).createScoped(SCOPE);
+                return credentials.refreshAccessToken();
+            }
+        }, new GoogleSpeech.Connected() {
             @Override
             public void onConnected() {
                 new Thread(() -> getNumberPlate()).start();

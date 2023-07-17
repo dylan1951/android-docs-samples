@@ -8,11 +8,15 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
 
+import com.google.auth.oauth2.AccessToken;
 import com.google.cloud.speech.v2.RecognitionConfig;
 import com.google.cloud.speech.v2.RecognitionFeatures;
 import com.google.cloud.speech.v2.SpeechAdaptation;
+import com.google.cloud.speech.v2.SpeechClient;
 import com.google.cloud.speech.v2.StreamingRecognitionFeatures;
 import com.google.cloud.speech.v2.StreamingRecognizeResponse;
+
+import java.io.IOException;
 
 import io.grpc.stub.StreamObserver;
 
@@ -25,7 +29,11 @@ public class GoogleSpeech {
         void onConnected();
     }
 
-    GoogleSpeech(Context context, Connected callback) {
+    public interface Authorize {
+        public AccessToken refreshAccessToken() throws IOException;
+    }
+
+    GoogleSpeech(Context context, Authorize authorize, Connected callback) {
         SimpleVoiceRecorder.Callback voiceCallback = new SimpleVoiceRecorder.Callback() {
             @Override
             public void onVoice(byte[] data, int size) {
@@ -39,6 +47,7 @@ public class GoogleSpeech {
             public void onServiceConnected(ComponentName componentName, IBinder binder) {
                 speechService = SpeechService.from(binder);
                 speechService.addListener(callback::onConnected);
+                speechService.setAuthorize(authorize);
             }
 
             @Override

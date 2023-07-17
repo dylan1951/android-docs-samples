@@ -26,9 +26,10 @@ import android.os.Handler;
 import android.os.IBinder;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import android.text.TextUtils;
+import android.text.TextUtils;ow
 import android.util.Log;
 
+import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -43,6 +44,7 @@ import com.google.cloud.speech.v2.SpeakerDiarizationConfig;
 import com.google.cloud.speech.v2.SpeechAdaptation;
 import com.google.cloud.speech.v2.SpeechClient;
 import com.google.cloud.speech.v2.SpeechGrpc;
+import com.google.cloud.speech.v2.SpeechSettings;
 import com.google.cloud.speech.v2.StreamingRecognitionConfig;
 import com.google.cloud.speech.v2.StreamingRecognitionFeatures;
 import com.google.cloud.speech.v2.StreamingRecognizeRequest;
@@ -111,6 +113,12 @@ public class SpeechService extends Service {
 
     public static SpeechService from(IBinder binder) {
         return ((SpeechBinder) binder).getService();
+    }
+
+    private GoogleSpeech.Authorize authorize;
+
+    public void setAuthorize(GoogleSpeech.Authorize authorize) {
+        this.authorize = authorize;
     }
 
     @Override
@@ -313,8 +321,7 @@ public class SpeechService extends Service {
 
         @Override
         protected AccessToken doInBackground(Void... voids) {
-            final SharedPreferences prefs =
-                    getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+            final SharedPreferences prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
             String tokenValue = prefs.getString(PREF_ACCESS_TOKEN_VALUE, null);
             long expirationTime = prefs.getLong(PREF_ACCESS_TOKEN_EXPIRATION_TIME, -1);
 
@@ -326,16 +333,8 @@ public class SpeechService extends Service {
                 }
             }
 
-            // ***** WARNING *****
-            // In this sample, we load the credential from a JSON file stored in a raw resource
-            // folder of this client app. You should never do this in your app. Instead, store
-            // the file in your server and obtain an access token from there.
-            // *******************
-            final InputStream stream = getResources().openRawResource(R.raw.credential);
             try {
-                final GoogleCredentials credentials = GoogleCredentials.fromStream(stream)
-                        .createScoped(SCOPE);
-                final AccessToken token = credentials.refreshAccessToken();
+                final AccessToken token = authorize.refreshAccessToken();
                 prefs.edit()
                         .putString(PREF_ACCESS_TOKEN_VALUE, token.getTokenValue())
                         .putLong(PREF_ACCESS_TOKEN_EXPIRATION_TIME,
@@ -358,6 +357,14 @@ public class SpeechService extends Service {
                             .createScoped(SCOPE)))
                     .build();
             mApi = SpeechGrpc.newStub(channel);
+
+            try {
+                SpeechClient client = SpeechClient.create(SpeechSettings.newBuilder()
+                                .setCredentialsProvider(FixedCredentialsProvider.create(new GoogleCredentials(accessToken)))
+                        .build());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
 
             // Schedule access token refresh before it expires
             if (mHandler != null) {
