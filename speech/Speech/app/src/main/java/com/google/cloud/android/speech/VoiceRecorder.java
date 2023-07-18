@@ -19,20 +19,19 @@ package com.google.cloud.android.speech;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.os.SystemClock;
 
 import androidx.annotation.NonNull;
 
 
 /**
- * Continuously records audio and notifies the {@link SimpleVoiceRecorder.Callback} when voice (or any
+ * Continuously records audio and notifies the {@link VoiceRecorder.Callback} when voice (or any
  * sound) is heard.
  *
  * <p>The recorded audio format is always {@link AudioFormat#ENCODING_PCM_16BIT} and
  * {@link AudioFormat#CHANNEL_IN_MONO}. This class will automatically pick the right sample rate
  * for the device. Use {@link #getSampleRate()} to get the selected value.</p>
  */
-public class SimpleVoiceRecorder {
+public class VoiceRecorder {
 
     private static final int[] SAMPLE_RATE_CANDIDATES = new int[]{16000, 11025, 22050, 44100};
     private static final int CHANNEL = AudioFormat.CHANNEL_IN_MONO;
@@ -48,7 +47,7 @@ public class SimpleVoiceRecorder {
     private byte[] mBuffer;
     private final Object mLock = new Object();
 
-    public SimpleVoiceRecorder(@NonNull Callback callback) {
+    public VoiceRecorder(@NonNull Callback callback) {
         mCallback = callback;
     }
 

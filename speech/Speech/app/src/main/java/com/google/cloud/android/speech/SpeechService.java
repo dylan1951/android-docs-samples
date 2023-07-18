@@ -20,7 +20,6 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
@@ -74,7 +73,6 @@ public class SpeechService extends Service {
     private static final int PORT = 443;
     private final SpeechBinder mBinder = new SpeechBinder();
     private final ArrayList<Listener> mListeners = new ArrayList<>();
-    private volatile AccessTokenTask mAccessTokenTask;
     public SpeechGrpc.SpeechStub mApi;
     private static Handler mHandler;
     private static CloudSpeech.Authorize authorize = null;
@@ -111,7 +109,7 @@ public class SpeechService extends Service {
     public void onCreate() {
         super.onCreate();
         mHandler = new Handler();
-        fetchAccessToken();
+        new Thread(this::fetchAccessToken).start();
     }
 
     public void registerListener(@NonNull Listener listener) {
@@ -141,11 +139,8 @@ public class SpeechService extends Service {
     }
 
     private void fetchAccessToken() {
-        if (mAccessTokenTask != null) {
-            return;
-        }
-        mAccessTokenTask = new AccessTokenTask();
-        mAccessTokenTask.execute();
+        AccessToken token = getAccessToken();
+        connect(token);
     }
 
     public static class NotConnectedException extends RuntimeException {
@@ -156,58 +151,52 @@ public class SpeechService extends Service {
 
     private final Runnable mFetchAccessTokenRunnable = this::fetchAccessToken;
 
-    private class AccessTokenTask extends AsyncTask<Void, Void, AccessToken> {
+    private AccessToken getAccessToken() {
+        final SharedPreferences prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String tokenValue = prefs.getString(PREF_ACCESS_TOKEN_VALUE, null);
+        long expirationTime = prefs.getLong(PREF_ACCESS_TOKEN_EXPIRATION_TIME, -1);
 
-        @Override
-        protected AccessToken doInBackground(Void... voids) {
-            final SharedPreferences prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-            String tokenValue = prefs.getString(PREF_ACCESS_TOKEN_VALUE, null);
-            long expirationTime = prefs.getLong(PREF_ACCESS_TOKEN_EXPIRATION_TIME, -1);
-
-            // Check if the current token is still valid for a while
-            if (tokenValue != null && expirationTime > 0) {
-                if (expirationTime
-                        > System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION_TOLERANCE) {
-                    return new AccessToken(tokenValue, new Date(expirationTime));
-                }
+        // Check if the current token is still valid for a while
+        if (tokenValue != null && expirationTime > 0) {
+            if (expirationTime
+                    > System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION_TOLERANCE) {
+                return new AccessToken(tokenValue, new Date(expirationTime));
             }
-
-            try {
-                final AccessToken token = authorize.refreshAccessToken();
-                prefs.edit()
-                        .putString(PREF_ACCESS_TOKEN_VALUE, token.getTokenValue())
-                        .putLong(PREF_ACCESS_TOKEN_EXPIRATION_TIME,
-                                token.getExpirationTime().getTime())
-                        .apply();
-                return token;
-            } catch (IOException e) {
-                Log.e(TAG, "Failed to obtain access token.", e);
-            }
-            return null;
         }
 
-        @Override
-        protected void onPostExecute(AccessToken accessToken) {
-            mAccessTokenTask = null;
-            final ManagedChannel channel = new OkHttpChannelProvider()
-                    .builderForAddress(HOSTNAME, PORT)
-                    .nameResolverFactory(new DnsNameResolverProvider())
-                    .intercept(new GoogleCredentialsInterceptor(new GoogleCredentials(accessToken)
-                            .createScoped(SCOPE)))
-                    .build();
-            mApi = SpeechGrpc.newStub(channel);
+        try {
+            final AccessToken token = authorize.refreshAccessToken();
+            prefs.edit()
+                    .putString(PREF_ACCESS_TOKEN_VALUE, token.getTokenValue())
+                    .putLong(PREF_ACCESS_TOKEN_EXPIRATION_TIME,
+                            token.getExpirationTime().getTime())
+                    .apply();
+            return token;
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to obtain access token.", e);
+        }
+        return null;
+    }
 
-            // Schedule access token refresh before it expires
-            if (mHandler != null) {
-                mHandler.postDelayed(mFetchAccessTokenRunnable,
-                        Math.max(accessToken.getExpirationTime().getTime()
-                                - System.currentTimeMillis()
-                                - ACCESS_TOKEN_FETCH_MARGIN, ACCESS_TOKEN_EXPIRATION_TOLERANCE));
-            }
+    private void connect(AccessToken accessToken) {
+        final ManagedChannel channel = new OkHttpChannelProvider()
+                .builderForAddress(HOSTNAME, PORT)
+                .nameResolverFactory(new DnsNameResolverProvider())
+                .intercept(new GoogleCredentialsInterceptor(new GoogleCredentials(accessToken)
+                        .createScoped(SCOPE)))
+                .build();
+        mApi = SpeechGrpc.newStub(channel);
 
-            for (Listener listener : mListeners) {
-                listener.onConnected();
-            }
+        // Schedule access token refresh before it expires
+        if (mHandler != null) {
+            mHandler.postDelayed(mFetchAccessTokenRunnable,
+                    Math.max(accessToken.getExpirationTime().getTime()
+                            - System.currentTimeMillis()
+                            - ACCESS_TOKEN_FETCH_MARGIN, ACCESS_TOKEN_EXPIRATION_TOLERANCE));
+        }
+
+        for (Listener listener : mListeners) {
+            listener.onConnected();
         }
     }
 

@@ -16,11 +16,19 @@
 
 package com.google.cloud.android.speech;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -37,15 +45,24 @@ import java.util.concurrent.CompletableFuture;
 
 import io.grpc.stub.StreamObserver;
 
-
 public class MainActivity extends Activity {
     private CloudSpeech speech;
     private TextToSpeech tts;
+
+    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1;
 
     @Override
     protected void onStart() {
         super.onStart();
 
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            initializeCloudSpeech();
+        } else {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
+        }
+    }
+
+    private void initializeCloudSpeech() {
         speech = new CloudSpeech(this, new CloudSpeech.Authorize() {
             final List<String> SCOPE = Collections.singletonList("https://www.googleapis.com/auth/cloud-platform");
             @Override
@@ -61,10 +78,40 @@ public class MainActivity extends Activity {
             }
         }, new CloudSpeech.Connected() {
             @Override
-            public void onConnected() {
+            public void onReady() {
                 new Thread(() -> getNumberPlate()).start();
             }
         });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
+            if (grantResults.length > 0) {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    initializeCloudSpeech();
+                } else {
+                    showPermissionMessageDialog();
+                }
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
+
+    private void showPermissionMessageDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Record Audio Permission");
+        builder.setMessage("This app requires audio recording permissions.");
+
+        builder.setNeutralButton("OK", (dialogInterface, i) -> ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO},
+                REQUEST_RECORD_AUDIO_PERMISSION));
+
+        builder.setOnDismissListener(dialogInterface -> ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO},
+                REQUEST_RECORD_AUDIO_PERMISSION));
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
     private CompletableFuture<Void> speak(String message) {

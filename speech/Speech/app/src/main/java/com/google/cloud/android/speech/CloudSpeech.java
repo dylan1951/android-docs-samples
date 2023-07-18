@@ -2,12 +2,16 @@ package com.google.cloud.android.speech;
 
 import static android.content.Context.BIND_AUTO_CREATE;
 
+import android.Manifest;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.os.IBinder;
 import android.util.Log;
+
+import androidx.core.content.ContextCompat;
 
 import com.google.auth.oauth2.AccessToken;
 import com.google.cloud.speech.v2.CreateRecognizerRequest;
@@ -32,14 +36,13 @@ import java.util.concurrent.CompletableFuture;
 import io.grpc.stub.StreamObserver;
 
 public class CloudSpeech {
-
-    private final SimpleVoiceRecorder voiceRecorder;
+    private final VoiceRecorder voiceRecorder;
     private volatile SpeechService speechService;
     private static final String parent = "projects/driverinsight-384904/locations/global";
     private StreamObserver<StreamingRecognizeRequest> mRequestObserver;
 
     public interface Connected {
-        void onConnected();
+        void onReady();
     }
 
     public interface Authorize {
@@ -47,9 +50,13 @@ public class CloudSpeech {
     }
 
     CloudSpeech(Context context, Authorize authorize, Connected callback) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_DENIED) {
+            throw new SecurityException("RECORD_AUDIO permission not granted");
+        }
+
         SpeechService.setAuthorize(authorize);
 
-        SimpleVoiceRecorder.Callback voiceCallback = new SimpleVoiceRecorder.Callback() {
+        VoiceRecorder.Callback voiceCallback = new VoiceRecorder.Callback() {
             @Override
             public void onVoice(byte[] data, int size) {
             if (speechService != null) {
@@ -62,7 +69,7 @@ public class CloudSpeech {
             @Override
             public void onServiceConnected(ComponentName componentName, IBinder binder) {
                 speechService = SpeechService.from(binder);
-                speechService.registerListener(callback::onConnected);
+                speechService.registerListener(callback::onReady);
             }
 
             @Override
@@ -72,7 +79,7 @@ public class CloudSpeech {
         };
 
         context.bindService(new Intent(context, SpeechService.class), serviceConnection, BIND_AUTO_CREATE);
-        voiceRecorder = new SimpleVoiceRecorder(voiceCallback);
+        voiceRecorder = new VoiceRecorder(voiceCallback);
     }
 
     public void startRecognizing(int sampleRate, SpeechAdaptation speechAdaptation, RecognitionFeatures recognitionFeatures, StreamingRecognitionFeatures streamingRecognitionFeatures, StreamObserver<StreamingRecognizeResponse> responseObserver) throws SpeechService.NotConnectedException {
