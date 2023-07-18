@@ -51,15 +51,42 @@ public class MainActivity extends Activity {
 
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1;
 
+    private void requestPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
-
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             initializeCloudSpeech();
         } else {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
+            requestPermission();
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
+            if (grantResults.length > 0) {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    initializeCloudSpeech();
+                } else {
+                    showPermissionMessageDialog();
+                }
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
+
+    private void showPermissionMessageDialog() {
+        new AlertDialog.Builder(this)
+            .setTitle("Record Audio Permission")
+            .setMessage("This app requires audio recording permissions.")
+            .setNeutralButton("OK", (dialogInterface, i) -> requestPermission())
+            .setOnDismissListener(dialogInterface -> requestPermission())
+            .create().show();
     }
 
     private void initializeCloudSpeech() {
@@ -82,36 +109,6 @@ public class MainActivity extends Activity {
                 new Thread(() -> getNumberPlate()).start();
             }
         });
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
-            if (grantResults.length > 0) {
-                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    initializeCloudSpeech();
-                } else {
-                    showPermissionMessageDialog();
-                }
-            }
-        } else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        }
-    }
-
-    private void showPermissionMessageDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Record Audio Permission");
-        builder.setMessage("This app requires audio recording permissions.");
-
-        builder.setNeutralButton("OK", (dialogInterface, i) -> ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO},
-                REQUEST_RECORD_AUDIO_PERMISSION));
-
-        builder.setOnDismissListener(dialogInterface -> ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO},
-                REQUEST_RECORD_AUDIO_PERMISSION));
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
     }
 
     private CompletableFuture<Void> speak(String message) {
