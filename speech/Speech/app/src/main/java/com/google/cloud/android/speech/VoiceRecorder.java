@@ -16,6 +16,7 @@
 
 package com.google.cloud.android.speech;
 
+import android.annotation.SuppressLint;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
@@ -113,8 +114,8 @@ public class VoiceRecorder {
             if (sizeInBytes == AudioRecord.ERROR_BAD_VALUE) {
                 continue;
             }
-            final AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                    sampleRate, CHANNEL, ENCODING, sizeInBytes);
+            @SuppressLint("MissingPermission")
+            final AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, CHANNEL, ENCODING, sizeInBytes);
             if (audioRecord.getState() == AudioRecord.STATE_INITIALIZED) {
                 mBuffer = new byte[sizeInBytes];
                 return audioRecord;

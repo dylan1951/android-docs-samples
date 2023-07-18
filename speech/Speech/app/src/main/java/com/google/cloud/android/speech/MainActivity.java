@@ -48,12 +48,7 @@ import io.grpc.stub.StreamObserver;
 public class MainActivity extends Activity {
     private CloudSpeech speech;
     private TextToSpeech tts;
-
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1;
-
-    private void requestPermission() {
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
-    }
 
     @Override
     protected void onStart() {
@@ -63,6 +58,10 @@ public class MainActivity extends Activity {
         } else {
             requestPermission();
         }
+    }
+
+    private void requestPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
     }
 
     @Override
