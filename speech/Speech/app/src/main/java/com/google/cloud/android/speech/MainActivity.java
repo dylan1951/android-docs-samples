@@ -39,20 +39,15 @@ import java.util.concurrent.CompletableFuture;
 import io.grpc.stub.StreamObserver;
 
 
-public class MainActivity extends AppCompatActivity implements MessageDialogFragment.Listener {
-    @Override
-    public void onMessageDialogDismissed() {
-
-    }
-
-    private GoogleSpeech speech;
+public class MainActivity extends AppCompatActivity {
+    private CloudSpeech speech;
     private TextToSpeech tts;
 
     @Override
     protected void onStart() {
         super.onStart();
 
-        speech = new GoogleSpeech(getApplicationContext(), new GoogleSpeech.Authorize() {
+        speech = new CloudSpeech(getApplicationContext(), new CloudSpeech.Authorize() {
             final List<String> SCOPE = Collections.singletonList("https://www.googleapis.com/auth/cloud-platform");
             @Override
             // ***** WARNING *****
@@ -65,7 +60,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                 final GoogleCredentials credentials = GoogleCredentials.fromStream(stream).createScoped(SCOPE);
                 return credentials.refreshAccessToken();
             }
-        }, new GoogleSpeech.Connected() {
+        }, new CloudSpeech.Connected() {
             @Override
             public void onConnected() {
                 new Thread(() -> getNumberPlate()).start();

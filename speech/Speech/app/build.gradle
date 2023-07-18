@@ -74,8 +74,8 @@ android {
 }
 
 dependencies {
-    implementation 'com.google.cloud:google-cloud-speech:4.16.0'
-    implementation 'com.google.api.grpc:grpc-google-cloud-speech-v2:4.16.0'
+    implementation 'com.google.cloud:google-cloud-speech:4.15.0'
+    implementation 'com.google.api.grpc:grpc-google-cloud-speech-v2:4.15.0'
 
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 

@@ -26,43 +26,21 @@ import android.os.Handler;
 import android.os.IBinder;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import android.text.TextUtils;ow
 import android.util.Log;
 
-import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.speech.v2.CreateRecognizerRequest;
-import com.google.cloud.speech.v2.ExplicitDecodingConfig;
-import com.google.cloud.speech.v2.ListRecognizersRequest;
-import com.google.cloud.speech.v2.ListRecognizersResponse;
-import com.google.cloud.speech.v2.RecognitionConfig;
-import com.google.cloud.speech.v2.RecognitionFeatures;
-import com.google.cloud.speech.v2.Recognizer;
-import com.google.cloud.speech.v2.SpeakerDiarizationConfig;
-import com.google.cloud.speech.v2.SpeechAdaptation;
-import com.google.cloud.speech.v2.SpeechClient;
 import com.google.cloud.speech.v2.SpeechGrpc;
-import com.google.cloud.speech.v2.SpeechSettings;
-import com.google.cloud.speech.v2.StreamingRecognitionConfig;
-import com.google.cloud.speech.v2.StreamingRecognitionFeatures;
-import com.google.cloud.speech.v2.StreamingRecognizeRequest;
-import com.google.cloud.speech.v2.StreamingRecognizeResponse;
-import com.google.longrunning.Operation;
-import com.google.protobuf.ByteString;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import io.grpc.CallOptions;
@@ -77,17 +55,9 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.internal.DnsNameResolverProvider;
 import io.grpc.okhttp.OkHttpChannelProvider;
-import io.grpc.stub.StreamObserver;
 
 
 public class SpeechService extends Service {
-
-    public interface Listener {
-        void ready();
-    }
-
-    private static final String parent = "projects/driverinsight-384904/locations/global";
-
     private static final String TAG = "SpeechService";
     private static final String PREFS = "SpeechService";
     private static final String PREF_ACCESS_TOKEN_VALUE = "access_token_value";
@@ -102,23 +72,39 @@ public class SpeechService extends Service {
             Collections.singletonList("https://www.googleapis.com/auth/cloud-platform");
     private static final String HOSTNAME = "speech.googleapis.com";
     private static final int PORT = 443;
-
     private final SpeechBinder mBinder = new SpeechBinder();
     private final ArrayList<Listener> mListeners = new ArrayList<>();
     private volatile AccessTokenTask mAccessTokenTask;
-    private SpeechGrpc.SpeechStub mApi;
+    public SpeechGrpc.SpeechStub mApi;
     private static Handler mHandler;
+    private static CloudSpeech.Authorize authorize = null;
 
-    private StreamObserver<StreamingRecognizeRequest> mRequestObserver;
+    public interface Listener {
+        void onConnected();
+    }
+
+    private class SpeechBinder extends Binder {
+        SpeechService getService() {
+            return SpeechService.this;
+        }
+    }
+
+    public static void setAuthorize(CloudSpeech.Authorize authorize) {
+        SpeechService.authorize = authorize;
+    }
 
     public static SpeechService from(IBinder binder) {
         return ((SpeechBinder) binder).getService();
     }
 
-    private GoogleSpeech.Authorize authorize;
-
-    public void setAuthorize(GoogleSpeech.Authorize authorize) {
-        this.authorize = authorize;
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        if (authorize == null) {
+            Log.e(TAG, "SpeechService requires you call setAuthorize() first!");
+            return null;
+        }
+        return mBinder;
     }
 
     @Override
@@ -126,6 +112,13 @@ public class SpeechService extends Service {
         super.onCreate();
         mHandler = new Handler();
         fetchAccessToken();
+    }
+
+    public void registerListener(@NonNull Listener listener) {
+        mListeners.add(listener);
+        if (mApi != null) {
+            listener.onConnected();
+        }
     }
 
     @Override
@@ -155,164 +148,10 @@ public class SpeechService extends Service {
         mAccessTokenTask.execute();
     }
 
-    private String getDefaultLanguageCode() {
-        final Locale locale = Locale.getDefault();
-        final StringBuilder language = new StringBuilder(locale.getLanguage());
-        final String country = locale.getCountry();
-        if (!TextUtils.isEmpty(country)) {
-            language.append("-");
-            language.append(country);
-        }
-        return language.toString();
-    }
-
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return mBinder;
-    }
-
-    public void addListener(@NonNull Listener listener) {
-        mListeners.add(listener);
-    }
-
-    public void removeListener(@NonNull Listener listener) {
-        mListeners.remove(listener);
-    }
-
     public static class NotConnectedException extends RuntimeException {
         public NotConnectedException() {
             super();
         }
-    }
-
-    public CompletableFuture<List<Recognizer>> getRecognizers() {
-        CompletableFuture<List<Recognizer>> future = new CompletableFuture<>();
-
-        ListRecognizersRequest request = ListRecognizersRequest.newBuilder().setParent(parent).build();
-
-        mApi.listRecognizers(request, new StreamObserver<ListRecognizersResponse>() {
-            @Override
-            public void onNext(ListRecognizersResponse value) {
-                future.complete(value.getRecognizersList());
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                future.completeExceptionally(t);
-            }
-
-            @Override
-            public void onCompleted() {}
-        });
-
-        return future;
-    }
-
-    public CompletableFuture<Operation> createRecognizer(Recognizer recognizer, final String id) {
-        CompletableFuture<Operation> future = new CompletableFuture<>();
-
-        CreateRecognizerRequest request = CreateRecognizerRequest.newBuilder()
-                .setParent(parent)
-                .setRecognizerId(id)
-                .setRecognizer(recognizer)
-                .build();
-
-        mApi.createRecognizer(request, new StreamObserver<Operation>() {
-            @Override
-            public void onNext(Operation value) {
-                future.complete(value);
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                future.completeExceptionally(t);
-            }
-
-            @Override
-            public void onCompleted() {}
-        });
-
-        return future;
-    }
-
-    /**
-     * Starts recognizing speech audio.
-     *
-     * @param sampleRate The sample rate of the audio.
-     */
-    public void startRecognizing(int sampleRate, SpeechAdaptation speechAdaptation, RecognitionFeatures recognitionFeatures, StreamingRecognitionFeatures streamingRecognitionFeatures, StreamObserver<StreamingRecognizeResponse> responseObserver) throws NotConnectedException {
-
-        Log.d("Banana", "startRecognizing()");
-
-        if (mApi == null) {
-            throw new NotConnectedException();
-        }
-
-        List<Recognizer> recognizers = getRecognizers().join();
-
-        Log.d("banana", "there are " + recognizers.size() + " recognizers");
-
-        if (recognizers.size() < 1) {
-            return;
-        }
-
-        // Configure the API
-        mRequestObserver = mApi.streamingRecognize(responseObserver);
-        mRequestObserver.onNext(StreamingRecognizeRequest.newBuilder()
-                .setStreamingConfig(StreamingRecognitionConfig.newBuilder()
-                        .setStreamingFeatures(streamingRecognitionFeatures)
-                        .setConfig(RecognitionConfig.newBuilder()
-                                .setAdaptation(speechAdaptation)
-                                .setFeatures(recognitionFeatures)
-                                .setExplicitDecodingConfig(ExplicitDecodingConfig.newBuilder()
-                                        .setEncoding(ExplicitDecodingConfig.AudioEncoding.LINEAR16)
-                                        .setSampleRateHertz(sampleRate)
-                                        .setAudioChannelCount(1)
-                                        .build())
-                                .build())
-                        .build())
-                        .setRecognizer(recognizers.get(0).getName())
-                .build());
-
-        Log.d("banana", "sent config request");
-    }
-
-    /**
-     * Recognizes the speech audio. This method should be called every time a chunk of byte buffer
-     * is ready.
-     *
-     * @param data The audio data.
-     * @param size The number of elements that are actually relevant in the {@code data}.
-     */
-    public void recognize(byte[] data, int size) {
-        if (mRequestObserver == null) {
-            return;
-        }
-
-        // Call the streaming recognition API
-        mRequestObserver.onNext(StreamingRecognizeRequest.newBuilder()
-                .setAudio(ByteString.copyFrom(data, 0, size))
-                .build());
-    }
-
-    /**
-     * Finishes recognizing speech audio.
-     */
-    public void finishRecognizing() {
-        if (mRequestObserver == null) {
-            return;
-        }
-        mRequestObserver.onCompleted();
-        mRequestObserver = null;
-    }
-
-    private class SpeechBinder extends Binder {
-
-        SpeechService getService() {
-            return SpeechService.this;
-        }
-
     }
 
     private final Runnable mFetchAccessTokenRunnable = this::fetchAccessToken;
@@ -358,14 +197,6 @@ public class SpeechService extends Service {
                     .build();
             mApi = SpeechGrpc.newStub(channel);
 
-            try {
-                SpeechClient client = SpeechClient.create(SpeechSettings.newBuilder()
-                                .setCredentialsProvider(FixedCredentialsProvider.create(new GoogleCredentials(accessToken)))
-                        .build());
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
             // Schedule access token refresh before it expires
             if (mHandler != null) {
                 mHandler.postDelayed(mFetchAccessTokenRunnable,
@@ -375,7 +206,7 @@ public class SpeechService extends Service {
             }
 
             for (Listener listener : mListeners) {
-                listener.ready();
+                listener.onConnected();
             }
         }
     }
