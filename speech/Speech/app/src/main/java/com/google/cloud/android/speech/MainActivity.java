@@ -84,7 +84,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
             .setTitle("Record Audio Permission")
             .setMessage("This app requires audio recording permissions.")
-            .setNeutralButton("OK", (dialogInterface, i) -> requestPermission())
+            .setNeutralButton("OK", null)
             .setOnDismissListener(dialogInterface -> requestPermission())
             .create().show();
     }
