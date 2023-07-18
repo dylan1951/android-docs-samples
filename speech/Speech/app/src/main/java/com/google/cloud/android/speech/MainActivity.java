@@ -16,12 +16,11 @@
 
 package com.google.cloud.android.speech;
 
+import android.app.Activity;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
-
-import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -39,7 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import io.grpc.stub.StreamObserver;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
     private CloudSpeech speech;
     private TextToSpeech tts;
 
@@ -47,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
 
-        speech = new CloudSpeech(getApplicationContext(), new CloudSpeech.Authorize() {
+        speech = new CloudSpeech(this, new CloudSpeech.Authorize() {
             final List<String> SCOPE = Collections.singletonList("https://www.googleapis.com/auth/cloud-platform");
             @Override
             // ***** WARNING *****
