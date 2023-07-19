@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.IBinder;
-import android.util.Log;
 
 import androidx.core.content.ContextCompat;
 
@@ -83,28 +82,23 @@ public class CloudSpeech {
     }
 
     public void startRecognizing(int sampleRate, SpeechAdaptation speechAdaptation, RecognitionFeatures recognitionFeatures, StreamingRecognitionFeatures streamingRecognitionFeatures, StreamObserver<StreamingRecognizeResponse> responseObserver) throws SpeechService.NotConnectedException {
-
-        Log.d("Banana", "startRecognizing()");
-
-        if (speechService.mApi == null) {
+        if (speechService.api == null) {
             throw new SpeechService.NotConnectedException();
         }
 
         List<Recognizer> recognizers = getRecognizers().join();
-
-        Log.d("banana", "there are " + recognizers.size() + " recognizers");
 
         if (recognizers.size() < 1) {
             return;
         }
 
         // Configure the API
-        mRequestObserver = speechService.mApi.streamingRecognize(responseObserver);
+        mRequestObserver = speechService.api.streamingRecognize(responseObserver);
         mRequestObserver.onNext(StreamingRecognizeRequest.newBuilder()
                 .setStreamingConfig(StreamingRecognitionConfig.newBuilder()
                         .setStreamingFeatures(streamingRecognitionFeatures)
                         .setConfig(RecognitionConfig.newBuilder()
-                                .setAdaptation(speechAdaptation)
+//                                .setAdaptation(speechAdaptation)
                                 .setFeatures(recognitionFeatures)
                                 .setExplicitDecodingConfig(ExplicitDecodingConfig.newBuilder()
                                         .setEncoding(ExplicitDecodingConfig.AudioEncoding.LINEAR16)
@@ -115,8 +109,6 @@ public class CloudSpeech {
                         .build())
                 .setRecognizer(recognizers.get(0).getName())
                 .build());
-
-        Log.d("banana", "sent config request");
     }
 
     public void startRecognizing(StreamObserver<StreamingRecognizeResponse> observer) {
@@ -163,7 +155,7 @@ public class CloudSpeech {
 
         ListRecognizersRequest request = ListRecognizersRequest.newBuilder().setParent(parent).build();
 
-        speechService.mApi.listRecognizers(request, new StreamObserver<ListRecognizersResponse>() {
+        speechService.api.listRecognizers(request, new StreamObserver<ListRecognizersResponse>() {
             @Override
             public void onNext(ListRecognizersResponse value) {
                 future.complete(value.getRecognizersList());
@@ -190,7 +182,7 @@ public class CloudSpeech {
                 .setRecognizer(recognizer)
                 .build();
 
-        speechService.mApi.createRecognizer(request, new StreamObserver<Operation>() {
+        speechService.api.createRecognizer(request, new StreamObserver<Operation>() {
             @Override
             public void onNext(Operation value) {
                 future.complete(value);

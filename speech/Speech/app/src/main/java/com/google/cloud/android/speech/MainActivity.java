@@ -19,7 +19,6 @@ package com.google.cloud.android.speech;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
@@ -31,19 +30,24 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.auth.oauth2.AccessToken;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.speech.v2.SpeechRecognitionAlternative;
 import com.google.cloud.speech.v2.StreamingRecognitionResult;
 import com.google.cloud.speech.v2.StreamingRecognizeResponse;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
 import io.grpc.stub.StreamObserver;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class MainActivity extends Activity {
     private CloudSpeech speech;
@@ -92,20 +96,24 @@ public class MainActivity extends Activity {
         speech = new CloudSpeech(this, new CloudSpeech.Authorize() {
             final List<String> SCOPE = Collections.singletonList("https://www.googleapis.com/auth/cloud-platform");
             @Override
-            // ***** WARNING *****
-            // In this sample, we load the credential from a JSON file stored in a raw resource
-            // folder of this client app. You should never do this in your app. Instead, store
-            // the file in your server and obtain an access token from there.
-            // *******************
             public AccessToken refreshAccessToken() throws IOException {
-                final InputStream stream = getResources().openRawResource(R.raw.credential);
-                final GoogleCredentials credentials = GoogleCredentials.fromStream(stream).createScoped(SCOPE);
-                return credentials.refreshAccessToken();
+                OkHttpClient client = new OkHttpClient();
+                Request request = new Request.Builder()
+                        .url("http://192.168.1.77:8000")
+                        .build();
+
+                try (Response response = client.newCall(request).execute()) {
+                    assert response.body() != null;
+                    JSONObject obj = new JSONObject(response.body().string());
+                    return new AccessToken(obj.getString("tokenValue"), new Date(obj.getLong("expiration")));
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }, new CloudSpeech.Connected() {
             @Override
             public void onReady() {
-                new Thread(() -> getNumberPlate()).start();
+                getNumberPlate();
             }
         });
     }
@@ -142,20 +150,15 @@ public class MainActivity extends Activity {
 
 
     private void getNumberPlate() {
-
-        speak("What is the registration of the vehicle?").join();
-
         speech.startRecognizing(new StreamObserver<StreamingRecognizeResponse>() {
             @Override
             public void onNext(StreamingRecognizeResponse value) {
-                Log.d("banana", "received response");
                 for (int i = 0; i < value.getResultsCount(); i++) {
                     StreamingRecognitionResult result = value.getResults(i);
                     if (result.getIsFinal()) {
                         for (int j = 0; j < result.getAlternativesCount(); j++) {
                             SpeechRecognitionAlternative alternative = result.getAlternatives(j);
-                            String numberPlate = alternative.getTranscript();
-                            Log.d("banana", numberPlate);
+                            Log.d("banana", alternative.getTranscript());
                         }
                         speech.stopRecognizing();
                     }
@@ -163,14 +166,10 @@ public class MainActivity extends Activity {
             }
 
             @Override
-            public void onError(Throwable t) {
-                Log.d("banana", t.toString());
-            }
+            public void onError(Throwable t) {}
 
             @Override
-            public void onCompleted() {
-                System.out.println("banana: COMPLETED");
-            }
+            public void onCompleted() {}
         });
     }
 }

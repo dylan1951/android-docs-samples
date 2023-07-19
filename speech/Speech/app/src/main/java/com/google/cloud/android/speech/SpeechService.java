@@ -73,7 +73,7 @@ public class SpeechService extends Service {
     private static final int PORT = 443;
     private final SpeechBinder mBinder = new SpeechBinder();
     private final ArrayList<Listener> mListeners = new ArrayList<>();
-    public SpeechGrpc.SpeechStub mApi;
+    public SpeechGrpc.SpeechStub api;
     private static Handler mHandler;
     private static CloudSpeech.Authorize authorize = null;
 
@@ -114,7 +114,7 @@ public class SpeechService extends Service {
 
     public void registerListener(@NonNull Listener listener) {
         mListeners.add(listener);
-        if (mApi != null) {
+        if (api != null) {
             listener.onConnected();
         }
     }
@@ -125,8 +125,8 @@ public class SpeechService extends Service {
         mHandler.removeCallbacks(mFetchAccessTokenRunnable);
         mHandler = null;
         // Release the gRPC channel.
-        if (mApi != null) {
-            final ManagedChannel channel = (ManagedChannel) mApi.getChannel();
+        if (api != null) {
+            final ManagedChannel channel = (ManagedChannel) api.getChannel();
             if (channel != null && !channel.isShutdown()) {
                 try {
                     channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
@@ -134,7 +134,7 @@ public class SpeechService extends Service {
                     Log.e(TAG, "Error shutting down the gRPC channel.", e);
                 }
             }
-            mApi = null;
+            api = null;
         }
     }
 
@@ -185,7 +185,9 @@ public class SpeechService extends Service {
                 .intercept(new GoogleCredentialsInterceptor(new GoogleCredentials(accessToken)
                         .createScoped(SCOPE)))
                 .build();
-        mApi = SpeechGrpc.newStub(channel);
+
+        Log.d("banana", "state was " + channel.getState(false));
+        api = SpeechGrpc.newStub(channel);
 
         // Schedule access token refresh before it expires
         if (mHandler != null) {
